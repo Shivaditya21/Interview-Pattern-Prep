@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop Notes</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a student's marked-up notes. One column of ruled sections, a numbered track for the loop,
+   and a yellow highlighter reserved for what is proven recent. */
+:root{
+  --paper:#f1f3ef; --card:#fbfcfa; --ink:#15211d; --muted:#5d6b65; --rule:#cfd6d0;
+  --accent:#2a3fd6; --accent-ink:#ffffff; --marker:#ffe14a; --marker-ink:#2a2300;
+  --good:#1f7a4d; --warn:#9a6200; --old:#8b3a2f;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#10171a; --card:#172024; --ink:#e7ece8; --muted:#97a59f; --rule:#2b383c;
+    --accent:#93a0ff; --accent-ink:#0c1030; --marker:#ffe14a; --marker-ink:#2a2300;
+    --good:#5fd19a; --warn:#f0b955; --old:#f09a8c; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#10171a; --card:#172024; --ink:#e7ece8; --muted:#97a59f; --rule:#2b383c;
+  --accent:#93a0ff; --accent-ink:#0c1030; --marker:#ffe14a; --marker-ink:#2a2300;
+  --good:#5fd19a; --warn:#f0b955; --old:#f09a8c; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 80px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
+p{margin:0}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+mark{background:var(--marker);color:var(--marker-ink);padding:0 .12em;border-radius:3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+
+header.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.01em}
+.brand span{background:var(--marker);color:var(--marker-ink);padding:0 6px;border-radius:3px;margin-left:2px}
+
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:36px;padding:44px 0 36px;align-items:end}
+.hero h1{font-size:clamp(38px,6.4vw,68px);font-weight:800;letter-spacing:-.03em}
+.hero .lede{margin-top:16px;color:var(--muted);max-width:46ch}
+form.ask{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:18px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input[type=text],select,textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:11px 12px;width:100%}
+textarea{resize:vertical;min-height:150px;line-height:1.45}
+.btn{font:600 15px var(--body);border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:8px;padding:12px 16px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center}
+.btn:hover{filter:brightness(1.15)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:7px 11px;font-size:13px}
+.modeline{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+.dot{flex:none;width:9px;height:9px;border-radius:50%;margin-top:6px;background:var(--muted)}
+.dot.live{background:var(--good)} .dot.mem{background:var(--warn)}
+
+.steps{list-style:none;margin:0 0 28px;padding:16px 18px;background:var(--card);border:1px solid var(--rule);border-radius:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.steps li{font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.steps li b{font-family:var(--mono);font-weight:500;font-size:12px}
+.steps li.on{color:var(--ink);font-weight:600}
+.steps li.done{color:var(--good)}
+.steps li.on::after{content:"";width:10px;height:10px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;align-self:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.steps li.on::after{animation:none}}
+
+.notice{border-left:4px solid var(--warn);background:var(--card);padding:12px 14px;border-radius:0 8px 8px 0;font-size:14px;margin-bottom:20px}
+.notice.err{border-color:var(--old)}
+.notice b{font-weight:600}
+
+.rephead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end;border-top:3px solid var(--ink);padding-top:18px}
+.rephead h2{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.02em}
+.rephead .sub{color:var(--muted);margin-top:8px;max-width:62ch}
+.badge{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid var(--rule);color:var(--muted);white-space:nowrap}
+.badge.live{border-color:var(--good);color:var(--good)}
+.badge.mem{border-color:var(--warn);color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--rule);border-radius:12px;margin:22px 0 34px;background:var(--card);overflow:hidden}
+.stat{padding:14px 16px;border-left:1px solid var(--rule)}
+.stat:first-child{border-left:0}
+.stat .n{font-family:var(--display);font-weight:700;font-size:30px;font-variant-numeric:tabular-nums;line-height:1}
+.stat .l{font-size:13px;color:var(--muted);margin-top:4px}
+.stat.hl .n span{background:var(--marker);color:var(--marker-ink);padding:0 6px;border-radius:4px}
+
+section.blk{margin-top:40px}
+.blkhead{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end;margin-bottom:16px}
+.blkhead h3{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.blkhead p{color:var(--muted);font-size:14px;margin-top:6px;max-width:60ch}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+
+ol.track{list-style:none;margin:0;padding:0;position:relative}
+ol.track::before{content:"";position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:var(--rule)}
+ol.track li{position:relative;padding:0 0 20px 46px}
+ol.track li:last-child{padding-bottom:0}
+.num{position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--paper);font:500 13px var(--mono);display:grid;place-items:center}
+.rname{font-weight:600;font-size:17px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.rname small{font:400 12px var(--mono);color:var(--muted);white-space:nowrap}
+.rwhat{color:var(--muted);font-size:14px;margin-top:2px}
+.bar{height:5px;background:var(--rule);border-radius:3px;margin:8px 0;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;border:1px solid var(--rule);border-radius:6px;padding:2px 7px;color:var(--muted);background:var(--card)}
+
+.plan{display:flex;flex-direction:column;gap:10px}
+.day{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+.day .dh{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.day .dh b{font-weight:600}
+.day ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.day label{display:flex;gap:9px;font-size:14px;align-items:flex-start;cursor:pointer}
+.day input{margin-top:3px;accent-color:var(--accent);flex:none}
+.day input:checked + span{color:var(--muted);text-decoration:line-through}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters select{width:auto;padding:8px 10px;font-size:14px}
+.toggle{display:inline-flex;gap:8px;align-items:center;font-size:14px;border:1px solid var(--rule);border-radius:8px;padding:8px 10px;background:var(--card);cursor:pointer}
+.toggle input{accent-color:var(--accent)}
+.qlist{border-top:1px solid var(--rule)}
+.q{display:grid;grid-template-columns:1fr auto;gap:8px 16px;padding:16px 0;border-bottom:1px solid var(--rule)}
+.q .text{font-family:var(--display);font-weight:500;font-size:19px;line-height:1.25}
+.q .meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px;color:var(--muted);margin-top:8px}
+.q .meta a{overflow-wrap:anywhere}
+.stamp{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
+.stamp.fresh,.stamp.recent{background:var(--marker);color:var(--marker-ink);border-color:var(--marker)}
+.stamp.aging{color:var(--warn)} .stamp.historical{color:var(--old)} .stamp.undated{color:var(--muted);border-style:dashed}
+.q .side{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.empty{padding:22px 0;color:var(--muted);font-size:15px}
+.srcs{margin:0;padding-left:20px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.srcs a{overflow-wrap:anywhere}
+details.fold summary{cursor:pointer;font-weight:600;padding:6px 0}
+
+.overlay{position:fixed;inset:0;background:rgba(8,12,14,.62);display:none;align-items:flex-start;justify-content:center;padding:20px;overflow:auto;z-index:20}
+.overlay.open{display:flex}
+.mock{background:var(--card);color:var(--ink);border-radius:16px;border:1px solid var(--rule);max-width:720px;width:100%;padding:22px;display:flex;flex-direction:column;gap:14px;margin:auto}
+.mock .mh{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.clock{font:500 34px var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.clock.low{color:var(--old)}
+.mock .mq{font-family:var(--display);font-weight:700;font-size:24px;line-height:1.2}
+.mock .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hintbox{border:1px dashed var(--rule);border-radius:10px;padding:12px 14px;font-size:15px}
+.hintbox.locked{color:var(--muted)}
+.review{white-space:pre-wrap;font-size:15px;border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--rule);color:var(--muted);font-size:13px;max-width:70ch}
+
+@media (max-width:820px){
+  .hero{grid-template-columns:1fr;padding:30px 0 26px;gap:22px}
+  .cols{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr 1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .stat:nth-child(3){border-left:0}
+  .stat:nth-child(n+3){border-top:1px solid var(--rule)}
+  .q{grid-template-columns:1fr}
+  .q .side{flex-direction:row;align-items:center;justify-content:space-between}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Loop<span>Notes</span></div>
+    <div style="display:flex;gap:12px;align-items:center"><div class="mono" id="today"></div><button class="btn ghost small" id="fbopen" type="button">Report a problem</button></div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>Study what they <mark>actually ask</mark>, not everything.</h1>
+      <p class="lede">Type a company and a role. Loop Notes reads recent candidate reports, maps the interview loop, lists the questions with their source and date, and builds a prep plan around the freshest evidence.</p>
+    </div>
+    <form class="ask" id="ask" autocomplete="off">
+      <div class="field"><label for="company">Company</label><input type="text" id="company" placeholder="e.g. Atlassian" maxlength="80" required></div>
+      <div class="field"><label for="role">Role</label><input type="text" id="role" placeholder="e.g. Software Engineer, SDE-2" maxlength="80" required></div>
+      <button class="btn" id="go" type="submit">Research the loop</button>
+      <div id="gbtn"></div>
+      <div class="modeline"><i class="dot" id="modedot"></i><span id="modetext">Loading…</span> <button class="btn ghost small" id="signout" type="button" hidden>Sign out</button></div>
+    </form>
+  </div>
+
+  <ol class="steps" id="steps" hidden>
+    <li data-s="search"><b>01</b>Search reports</li>
+    <li data-s="read"><b>02</b>Read top pages</li>
+    <li data-s="extract"><b>03</b>Extract dated evidence</li>
+    <li data-s="score"><b>04</b>Score and plan</li>
+  </ol>
+  <div id="notice"></div>
+  <main id="report"></main>
+
+  <footer>Reports are other people's recollections, and companies rotate questions. Treat the pattern as a study guide, check the linked source before you rely on a question, and never treat a single report as proof. Found a wrong question, a stale date or a way to break the site? Use Report a problem at the top.</footer>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mq">
+  <div class="mock">
+    <div class="mh">
+      <div><div class="mono">Mock round · 45 minutes</div><div class="clock" id="clock">45:00</div></div>
+      <div class="row">
+        <button class="btn ghost small" id="pause" type="button">Pause</button>
+        <button class="btn ghost small" id="another" type="button">Another question</button>
+        <button class="btn small" id="endmock" type="button">End round</button>
+      </div>
+    </div>
+    <div class="mono" id="mmeta"></div>
+    <div class="mq" id="mq"></div>
+    <div class="field">
+      <label for="approach">Your approach, before any hint</label>
+      <textarea id="approach" placeholder="Restate the problem, name the pattern you would use, walk through the steps, give time and space cost, list edge cases."></textarea>
+    </div>
+    <div class="hintbox locked" id="hintbox"></div>
+    <div class="row">
+      <button class="btn ghost small" id="showhint" type="button" disabled>Show hint</button>
+      <button class="btn accent small" id="reviewbtn" type="button" disabled>Review my approach</button>
+    </div>
+    <div class="review" id="review" hidden></div>
+  </div>
+</div>
+
+<div class="overlay" id="fbov" role="dialog" aria-modal="true" aria-labelledby="fbtitle">
+  <div class="mock">
+    <div class="mh"><h3 id="fbtitle" style="font-size:22px">Report a problem</h3><button class="btn ghost small" id="fbclose" type="button">Close</button></div>
+    <div class="mono" id="fbctx"></div>
+    <div class="field"><label for="fbmsg">What is wrong, or what did you manage to break?</label>
+      <textarea id="fbmsg" maxlength="2000" placeholder="For example: this question is from a different company, the date is wrong, the search for X returned nothing, I got past the daily limit by…"></textarea></div>
+    <div class="row"><button class="btn accent small" id="fbsend" type="button">Send report</button><span id="fbstate" style="font-size:14px;color:var(--muted)"></span></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const HINT_MIN = 120, MOCK_MS = 45 * 60 * 1000;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const host = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }, del(k){ try { localStorage.removeItem(k); } catch {} } };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const now = new Date();
+$("#today").textContent = now.toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+
+/* ---------- freshness and scoring (deterministic, done in the page) ---------- */
+function monthsAgo(d){
+  if (!d) return null;
+  const m = /^(\d{4})(?:-(\d{1,2}))?/.exec(String(d)); if (!m) return null;
+  const y = +m[1], mo = m[2] ? +m[2] : 6;
+  if (y < 2005 || mo < 1 || mo > 12) return null;
+  const diff = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - mo);
+  return diff < -1 ? null : Math.max(0, diff);
+}
+function fresh(q){
+  const m = monthsAgo(q.date);
+  if (m === null) return { key:"undated", label:"Undated", w:.3 };
+  if (m <= 6)  return { key:"fresh", label:"Fresh", w:1 };
+  if (m <= 18) return { key:"recent", label:"Recent", w:.8 };
+  if (m <= 30) return { key:"aging", label:"Aging", w:.45 };
+  return { key:"historical", label:"Historical", w:.2 };
+}
+const proven = (q, rep) => { const f = fresh(q).key, s = srcOf(q, rep); return (f === "fresh" || f === "recent") && !!s && (!!s.url || rep.mode === "example"); };
+const score = q => fresh(q).w * (1 + .35 * Math.min(4, (q.mentions || 1) - 1));
+function confidence(q){
+  const f = fresh(q).key, n = q.mentions || 1, rec = f === "fresh" || f === "recent";
+  return n >= 3 && rec ? "High" : (n >= 2 || rec) ? "Medium" : "Low";
+}
+const srcOf = (q, rep) => Number.isInteger(q.src) ? rep.sources[q.src - 1] : null;
+function fmtDate(d){
+  const m = /^(\d{4})(?:-(\d{1,2}))?/.exec(String(d || "")); if (!m) return "";
+  return m[2] ? new Date(+m[1], +m[2] - 1, 1).toLocaleDateString(undefined, { month:"short", year:"numeric" }) : m[1];
+}
+
+/* ---------- example shown at rest (invented, clearly labelled) ---------- */
+function ym(back){ const d = new Date(now.getFullYear(), now.getMonth() - back, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+function exampleReport(){
+  return { id:"example", mode:"example", company:"Kestrel Freight", role:"Backend Engineer",
+    summary:"An invented company, shown so you can see the layout. Four rounds, heavy on graphs and on designing delivery tracking.",
+    caveats:"", pagesRead:0,
+    sources:[{title:"Example report A",url:null},{title:"Example report B",url:null},{title:"Example report C",url:null}],
+    rounds:[
+      {name:"Recruiter screen",what:"Background, motivation, notice period, pay range.",share:92,topics:["Project walkthrough","Why this company"]},
+      {name:"Coding",what:"Two problems in 60 minutes, shared editor, tests expected.",share:85,topics:["Graphs","Intervals","Hash maps"]},
+      {name:"System design",what:"One open design prompt about scale and failure.",share:64,topics:["Event delivery","Rate limiting"]},
+      {name:"Hiring manager",what:"Ownership, conflict, and a past incident.",share:58,topics:["Ownership","Conflict"]}],
+    questions:[
+      {q:"Given a road network with travel times, find the cheapest route that passes through a required stop.",round:"Coding",topic:"Graphs",src:1,date:ym(2),mentions:4,hint:"Think of it as two shortest-path runs joined at the required stop."},
+      {q:"Merge overlapping delivery windows and return the free slots for a driver.",round:"Coding",topic:"Intervals",src:2,date:ym(5),mentions:3,hint:"Sort by start time first; the free slots fall out of the gaps."},
+      {q:"Design a service that tracks one million parcels and pushes live location updates to customers.",round:"System design",topic:"Event delivery",src:1,date:ym(4),mentions:3,hint:"Separate ingesting location pings from fanning them out to watchers."},
+      {q:"Tell me about a time you disagreed with a technical decision and what you did.",round:"Hiring manager",topic:"Conflict",src:3,date:ym(9),mentions:2,hint:"Pick a story where you changed your mind or theirs with data."},
+      {q:"Design a rate limiter for a public API shared by many partners.",round:"System design",topic:"Rate limiting",src:2,date:ym(22),mentions:2,hint:"Start with one machine and a token bucket, then ask what breaks across many."},
+      {q:"Implement an LRU cache with constant-time get and put.",round:"Coding",topic:"Hash maps",src:3,date:ym(41),mentions:1,hint:"You need fast lookup and fast reordering, so two structures working together."},
+      {q:"Walk me through the project you are proudest of.",round:"Recruiter screen",topic:"Project walkthrough",src:null,date:null,mentions:2,hint:"Two minutes: problem, your part, the result in numbers."}],
+    plan:[
+      {day:"Day 1",title:"Stories first",minutes:60,tasks:["Write a two-minute project walkthrough","Draft one conflict story and one ownership story"]},
+      {day:"Day 2",title:"Graphs",minutes:90,tasks:["Shortest path with a required stop","Two timed graph problems, 25 minutes each"]},
+      {day:"Day 3",title:"Intervals and maps",minutes:90,tasks:["Merge and gap problems","LRU cache from memory"]},
+      {day:"Day 4",title:"Design",minutes:90,tasks:["Parcel tracking design out loud","Rate limiter: one machine, then many"]},
+      {day:"Day 5",title:"Full mock",minutes:60,tasks:["One 45-minute mock round here","Fix the weakest topic it exposed"]}] };
+}
+
+/* ---------- state ---------- */
+const S = { report: store.get("loopnotes.report") || exampleReport(), round:"all", provenOnly:false, checks: store.get("loopnotes.checks") || {}, cfg:null, token:null, email:"", busy:false };
+
+/* ---------- sign-in and server calls ---------- */
+function readToken(t){
+  try { const p = JSON.parse(decodeURIComponent(escape(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))))); return p.exp * 1000 > Date.now() + 60000 ? p : null; } catch { return null; }
+}
+function setToken(t){
+  const p = t ? readToken(t) : null;
+  S.token = p ? t : null; S.email = p ? (p.email || "") : "";
+  if (p) store.set("loopnotes.token", t); else store.del("loopnotes.token");
+  paintAuth();
+}
+function paintAuth(){
+  const dot = $("#modedot"), t = $("#modetext"); dot.className = "dot";
+  $("#gbtn").hidden = !!S.token; $("#signout").hidden = !S.token;
+  if (!S.cfg) { t.textContent = "The server isn't reachable, so you are looking at the example report."; return; }
+  if (!S.cfg.ready || !S.cfg.googleClientId) { dot.classList.add("mem"); t.textContent = "This site isn't fully set up yet. The example report below still works."; return; }
+  if (S.token) { dot.classList.add("live"); t.textContent = `Signed in as ${S.email}. ${S.cfg.dailyLimit} new searches a day; reports already run by anyone open instantly.`; }
+  else t.textContent = "Sign in with Google to research a company. It only keeps your account id to count daily searches.";
+}
+async function api(path, payload){
+  let r;
+  try { r = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json", ...(S.token ? { Authorization:"Bearer " + S.token } : {}) }, body: JSON.stringify(payload) }); }
+  catch { throw { user:"Can't reach the server. Check your connection and try again." }; }
+  let j = {}; try { j = await r.json(); } catch {}
+  if (r.status === 401) setToken(null);
+  if (!r.ok) throw { status:r.status, user: j.error || (r.status === 504 ? "The research took too long. Try again; the second run is usually faster." : "Something went wrong. Try again in a moment.") };
+  return j;
+}
+(async () => {
+  try { const r = await fetch("/api/config"); S.cfg = r.ok ? await r.json() : null; } catch { S.cfg = null; }
+  const saved = store.get("loopnotes.token"); if (saved) setToken(saved); else paintAuth();
+  if (!S.cfg || !S.cfg.googleClientId) return;
+  for (let i = 0; i < 40 && !(window.google && google.accounts && google.accounts.id); i++) await sleep(250);
+  if (!(window.google && google.accounts && google.accounts.id)) { if (!S.token) $("#modetext").textContent = "Google sign-in didn't load. Turn off any blocker for this page and reload."; return; }
+  google.accounts.id.initialize({ client_id: S.cfg.googleClientId, callback: resp => setToken(resp.credential), auto_select: true });
+  google.accounts.id.renderButton($("#gbtn"), { theme:"outline", size:"large", text:"signin_with", shape:"rectangular" });
+})();
+$("#signout").addEventListener("click", () => { try { google.accounts.id.disableAutoSelect(); } catch {} setToken(null); });
+
+/* ---------- rendering ---------- */
+function setNotice(html, err){ $("#notice").innerHTML = html ? `<div class="notice${err ? " err" : ""}">${html}</div>` : ""; }
+function setStep(name){
+  const el = $("#steps"); el.hidden = !name;
+  const order = ["search","read","extract","score"], i = order.indexOf(name);
+  el.querySelectorAll("li").forEach((li, k) => { li.className = k < i ? "done" : k === i ? "on" : ""; });
+}
+function visibleQuestions(){
+  const r = S.report;
+  return r.questions.filter(q => (S.round === "all" || q.round === S.round) && (!S.provenOnly || proven(q, r))).sort((a, b) => score(b) - score(a));
+}
+function render(){
+  const r = S.report, qs = r.questions;
+  const nProven = qs.filter(q => proven(q, r)).length;
+  const badge = r.mode === "live" ? `<span class="badge live">Live web research</span>` : r.mode === "memory" ? `<span class="badge mem">From Claude's memory · unverified</span>` : `<span class="badge">Example report · invented data</span>`;
+  const rounds = [...new Set(qs.map(q => q.round).filter(Boolean))];
+  const linked = r.sources.filter(s => s.url);
+  $("#report").innerHTML = `
+    <div class="rephead">
+      <div>
+        <div class="mono">${esc(r.role)}</div>
+        <h2>${esc(r.company)}</h2>
+        <p class="sub">${esc(r.summary)}</p>
+      </div>
+      <div>${badge}</div>
+    </div>
+    ${r.caveats ? `<div class="notice" style="margin-top:16px"><b>How solid is this?</b> ${esc(r.caveats)}</div>` : ""}
+    <div class="stats">
+      <div class="stat"><div class="n">${r.sources.length}</div><div class="l">sources found</div></div>
+      <div class="stat"><div class="n">${r.pagesRead || 0}</div><div class="l">pages read in full</div></div>
+      <div class="stat"><div class="n">${qs.length}</div><div class="l">reported questions</div></div>
+      <div class="stat hl"><div class="n"><span>${nProven}</span></div><div class="l">with a source and a date in the last 18 months</div></div>
+    </div>
+
+    <div class="cols">
+      <section>
+        <div class="blkhead"><div><h3>What the loop looks like</h3><p>Rounds in order. The bar is the rough share of reports that mention the round.</p></div></div>
+        ${r.rounds.length ? `<ol class="track">${r.rounds.map((x, i) => `
+          <li><span class="num">${String(i + 1).padStart(2, "0")}</span>
+            <div class="rname"><span>${esc(x.name)}</span>${Number.isFinite(x.share) ? `<small>${x.share}% of reports</small>` : ""}</div>
+            <div class="rwhat">${esc(x.what)}</div>
+            ${Number.isFinite(x.share) ? `<div class="bar"><i style="width:${Math.max(4, Math.min(100, x.share))}%"></i></div>` : ""}
+            <div class="chips">${(x.topics || []).map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+          </li>`).join("")}</ol>` : `<p class="empty">No round structure could be drawn from the evidence.</p>`}
+      </section>
+      <section>
+        <div class="blkhead"><div><h3>A plan you can follow</h3><p>Weighted toward topics with the freshest evidence. Ticks are saved in this browser.</p></div></div>
+        ${r.plan.length ? `<div class="plan">${r.plan.map((d, i) => `
+          <div class="day"><div class="dh"><b>${esc(d.day)} · ${esc(d.title)}</b>${d.minutes ? `<span class="mono">${esc(d.minutes)} min</span>` : ""}</div>
+            <ul>${(d.tasks || []).map((t, k) => { const id = `${r.id}:${i}:${k}`; return `<li><label><input type="checkbox" data-check="${esc(id)}" ${S.checks[id] ? "checked" : ""}><span>${esc(t)}</span></label></li>`; }).join("")}</ul>
+          </div>`).join("")}</div>` : `<p class="empty">No plan yet.</p>`}
+      </section>
+    </div>
+
+    <section class="blk">
+      <div class="blkhead">
+        <div><h3>Questions worth rehearsing</h3><p>Sorted by freshness and by how many separate reports mention them. Yellow means dated within 18 months.</p></div>
+        <div class="filters">
+          <label class="toggle"><input type="checkbox" id="provenOnly" ${S.provenOnly ? "checked" : ""}>Only source + recent date</label>
+          <select id="roundSel" aria-label="Filter by round"><option value="all">All rounds</option>${rounds.map(x => `<option ${S.round === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+          <button class="btn accent small" id="startMock" type="button" ${qs.length ? "" : "disabled"}>Start mock round</button>
+        </div>
+      </div>
+      <div class="qlist" id="qlist"></div>
+    </section>
+
+    ${linked.length ? `<section class="blk"><details class="fold"><summary>Sources (${linked.length})</summary><ol class="srcs">${r.sources.map(s => s.url ? `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title || host(s.url))}</a> · ${esc(host(s.url))}${s.read ? " · read in full" : ""}</li>` : `<li>${esc(s.title)}</li>`).join("")}</ol></details></section>` : ""}`;
+  renderQuestions();
+}
+function renderQuestions(){
+  const r = S.report, list = visibleQuestions(), el = $("#qlist"); if (!el) return;
+  if (!list.length) { el.innerHTML = `<p class="empty">${S.provenOnly ? "No question here has both a source link and a date in the last 18 months. Turn the filter off to see everything, and treat it as directional." : "No questions for this filter."}</p>`; return; }
+  el.innerHTML = list.map(q => {
+    const f = fresh(q), s = srcOf(q, r), i = r.questions.indexOf(q);
+    const src = s ? (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(host(s.url))}</a>` : esc(s.title)) : (r.mode === "memory" ? "no source (Claude's memory)" : "no source");
+    return `<div class="q"><div>
+        <div class="text">${esc(q.q)}</div>
+        <div class="meta">${q.round ? `<span class="chip">${esc(q.round)}</span>` : ""}${q.topic ? `<span class="chip">${esc(q.topic)}</span>` : ""}
+          <span>${q.mentions || 1} ${(q.mentions || 1) === 1 ? "report" : "reports"}</span>
+          <span>${q.date ? "last seen " + esc(fmtDate(q.date)) : "no date stated"}</span>
+          <span>${src}</span><span>confidence: ${confidence(q).toLowerCase()}</span></div>
+      </div>
+      <div class="side"><span class="stamp ${f.key}">${f.label}</span><button class="btn ghost small" type="button" data-practise="${i}">Practise</button><button class="btn ghost small" type="button" data-flag="${i}">Report</button></div></div>`;
+  }).join("");
+}
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "provenOnly") { S.provenOnly = t.checked; renderQuestions(); }
+  else if (t.id === "roundSel") { S.round = t.value; renderQuestions(); }
+  else if (t.dataset && t.dataset.check) { S.checks[t.dataset.check] = t.checked; store.set("loopnotes.checks", S.checks); }
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "startMock") { const l = visibleQuestions(); if (l.length) openMock(l[Math.floor(Math.random() * l.length)]); }
+  else if (b.dataset.practise) openMock(S.report.questions[+b.dataset.practise]);
+});
+
+/* ---------- research ---------- */
+let stepTimer = 0;
+function runSteps(){
+  const order = ["search","read","extract","score"]; let i = 0; setStep(order[0]);
+  stepTimer = setInterval(() => { if (i < order.length - 1) setStep(order[++i]); }, 9000);
+}
+$("#ask").addEventListener("submit", async e => {
+  e.preventDefault(); if (S.busy) return;
+  const company = $("#company").value.trim(), role = $("#role").value.trim(); if (!company || !role) return;
+  if (!S.token) { setNotice("Sign in with Google first, then run the search.", true); return; }
+  S.busy = true; const go = $("#go"); go.disabled = true; go.textContent = "Researching… usually under a minute"; setNotice(""); runSteps();
+  try {
+    const { report, cached } = await api("/api/research", { company, role });
+    S.report = report; S.round = "all"; S.provenOnly = false; store.set("loopnotes.report", report);
+    const notes = [];
+    if (cached) notes.push(`Saved report from ${new Date(report.createdAt).toLocaleDateString()}. It didn't use one of your searches.`);
+    if (report.mode === "memory") notes.push("The web search found nothing usable, so this comes from general knowledge with no sources or dates. Treat it as directional.");
+    setNotice(esc(notes.join(" "))); render();
+    $("#report").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start" });
+  } catch (err) { setNotice(esc(err && err.user ? err.user : "Something went wrong while researching. Try again."), true); }
+  finally { clearInterval(stepTimer); setStep(null); S.busy = false; go.disabled = false; go.textContent = "Research the loop"; }
+});
+
+/* ---------- mock round ---------- */
+const M = { q:null, left:MOCK_MS, last:0, running:false, timer:0, hintShown:false, reviewing:false };
+function paintClock(){
+  const s = Math.max(0, Math.ceil(M.left / 1000)), c = $("#clock");
+  c.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  c.classList.toggle("low", s <= 300);
+  if (s === 0) { stopTimer(); c.textContent = "Time"; }
+}
+function tick(){ const t = Date.now(); M.left -= t - M.last; M.last = t; paintClock(); }
+function startTimer(){ if (M.running) return; M.running = true; M.last = Date.now(); M.timer = setInterval(tick, 250); $("#pause").textContent = "Pause"; }
+function stopTimer(){ M.running = false; clearInterval(M.timer); $("#pause").textContent = "Resume"; }
+function paintHint(){
+  const n = $("#approach").value.trim().length, ok = n >= HINT_MIN, box = $("#hintbox");
+  $("#showhint").disabled = !ok || M.hintShown;
+  $("#reviewbtn").hidden = S.report.mode === "example" || !S.token; $("#reviewbtn").disabled = !ok || M.reviewing;
+  if (M.hintShown) { box.className = "hintbox"; box.textContent = "Hint: " + (M.q.hint || "No hint was stored for this question."); }
+  else { box.className = "hintbox locked"; box.textContent = ok ? "Hint unlocked. Reveal it when you are stuck." : `The hint stays hidden until you have written your approach (${n}/${HINT_MIN} characters).`; }
+}
+function openMock(q){
+  if (!q) return;
+  M.q = q; M.left = MOCK_MS; M.hintShown = false;
+  const s = srcOf(q, S.report);
+  $("#mq").textContent = q.q;
+  $("#mmeta").textContent = [q.round, q.topic, q.date ? "last seen " + fmtDate(q.date) : "", s && s.url ? host(s.url) : ""].filter(Boolean).join(" · ");
+  $("#approach").value = ""; $("#review").hidden = true; $("#review").textContent = "";
+  $("#overlay").classList.add("open"); paintClock(); paintHint(); stopTimer(); startTimer(); $("#approach").focus();
+}
+function closeMock(){ stopTimer(); $("#overlay").classList.remove("open"); }
+$("#approach").addEventListener("input", paintHint);
+$("#pause").addEventListener("click", () => M.running ? stopTimer() : (M.left > 0 && startTimer()));
+$("#endmock").addEventListener("click", closeMock);
+$("#another").addEventListener("click", () => { const l = visibleQuestions().filter(x => x !== M.q); const pool = l.length ? l : S.report.questions; openMock(pool[Math.floor(Math.random() * pool.length)]); });
+$("#showhint").addEventListener("click", () => { M.hintShown = true; paintHint(); });
+$("#reviewbtn").addEventListener("click", async () => {
+  const out = $("#review"), q = M.q; M.reviewing = true; paintHint(); out.hidden = false; out.textContent = "Thinking…";
+  try { const { text } = await api("/api/review", { company:S.report.company, role:S.report.role, question:q.q, approach:$("#approach").value }); if (M.q === q) out.textContent = text; }
+  catch (e) { out.textContent = e && e.user ? e.user : "The review didn't finish. Try again."; }
+  finally { M.reviewing = false; paintHint(); }
+});
+
+/* ---------- report a problem ---------- */
+const F = { ctx:{} };
+function openFeedback(ctx){
+  F.ctx = ctx || {};
+  $("#fbctx").textContent = [S.report.company, S.report.role, F.ctx.question ? "“" + F.ctx.question.slice(0, 90) + "”" : ""].filter(Boolean).join(" · ");
+  $("#fbstate").textContent = S.token ? "" : "Sign in with Google first so reports can't be spammed.";
+  $("#fbsend").disabled = !S.token; $("#fbov").classList.add("open"); $("#fbmsg").focus();
+}
+$("#fbopen").addEventListener("click", () => openFeedback({ kind:"general" }));
+$("#fbclose").addEventListener("click", () => $("#fbov").classList.remove("open"));
+document.addEventListener("click", e => { const b = e.target.closest("button[data-flag]"); if (b) openFeedback({ kind:"question", question: S.report.questions[+b.dataset.flag].q }); });
+$("#fbsend").addEventListener("click", async () => {
+  const msg = $("#fbmsg").value.trim(), st = $("#fbstate"); if (msg.length < 5) { st.textContent = "Say a little more about what went wrong."; return; }
+  $("#fbsend").disabled = true; st.textContent = "Sending…";
+  try { await api("/api/feedback", { message:msg, kind:F.ctx.kind || "general", question:F.ctx.question || "", company:S.report.company, role:S.report.role }); $("#fbmsg").value = ""; st.textContent = "Sent. Thank you."; }
+  catch (e) { st.textContent = e && e.user ? e.user : "Couldn't send. Try again."; }
+  finally { $("#fbsend").disabled = !S.token; }
+});
+document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if ($("#fbov").classList.contains("open")) $("#fbov").classList.remove("open"); else if ($("#overlay").classList.contains("open")) closeMock(); });
+
+render(); paintAuth();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/research.js": { "maxDuration": 180 },
+    "api/review.js": { "maxDuration": 60 }
+  }
+}
